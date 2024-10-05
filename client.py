@@ -10,55 +10,63 @@ FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
 def get_current_time():
-    """Returns the current time formatted as a string."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def connect():
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(ADDR)
-    return client
+class ChatClient:
+    def __init__(self):
+        self.username = None
+        self.email = None
+        self.connection = None
 
-def send(client, msg):
-    try:
-        message = msg.encode(FORMAT)
-        client.sendall(message)
-    except Exception as e:
-        print(f"\033[1;31m[ERROR] Failed to send message: {e}\033[0m")
-
-def receive(client):
-    while True:
+    def send(self, msg):
         try:
-            message = client.recv(1024).decode(FORMAT)
-            if message:
-                print(f"\r\033[1;34m{message}\033[0m\n\033[1;32m{username}:\033[0m ", end="", flush=True)
+            message = msg.encode(FORMAT)
+            self.connection.sendall(message)
         except Exception as e:
-            print(f"\033[1;31m[ERROR] {e}\033[0m")
-            break
+            print(f"\033[1;31m[ERROR] Failed to send message: {e}\033[0m")
 
-def start():
-    global username
-    username = input('Enter your username: ')
-    answer = input(f'Would you like to connect with username: {username} (yes/no)? ')
-    if answer.lower() != 'yes':
-        return
+    def receive(self):
+        while True:
+            try:
+                message = self.connection.recv(1024).decode(FORMAT)
+                if message:
+                    print(f"\r\033[1;34m{message}\033[0m\n\033[1;32m{self.username}:\033[0m ", end="", flush=True)
+            except Exception as e:
+                print(f"\033[1;31m[ERROR] {e}\033[0m")
+                break
 
-    connection = connect()
-    send(connection, username)
+    def connect(self):
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(ADDR)
+        return client
 
-    receive_thread = threading.Thread(target=receive, args=(connection,))
-    receive_thread.daemon = True
-    receive_thread.start()
+    def start(self):
+        self.username = input('Enter your username: ')
+        self.email = input(f'Enter your email: ')
+        
+        answer = input(f'Would you like to connect with username: {self.username} and email: {self.email} (yes/no)? ')
+        if answer.lower() != 'yes':
+            return
 
-    while True:
-        msg = input(f"\033[1;32m{username}:\033[0m ")
+        self.connection = self.connect()
+        self.send(f"{self.username}|{self.email}")
 
-        if msg.lower() == 'q':
-            send(connection, DISCONNECT_MESSAGE)
-            break
+        receive_thread = threading.Thread(target=self.receive)
+        receive_thread.daemon = True
+        receive_thread.start()
 
-        send(connection, msg)
+        while True:
+            msg = input(f"\033[1;32m{self.username}:\033[0m ")
 
-    print('\033[1;33mDisconnected\033[0m')
-    connection.close()
+            if msg.lower() == 'q':
+                self.send(DISCONNECT_MESSAGE)
+                break
 
-start()
+            self.send(msg)
+
+        print('\033[1;33mDisconnected\033[0m')
+        self.connection.close()
+
+if __name__ == "__main__":
+    client = ChatClient()
+    client.start()
